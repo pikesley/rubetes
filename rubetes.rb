@@ -6,38 +6,83 @@ csvdir = "/home/sam/dblogs"
 lastdir = "#{csvdir}/#{Dir::entries(csvdir).sort[-1]}"
 csvfile = "#{lastdir}/#{Dir::entries(lastdir).sort[-1]}"
 
-class Event
-  def initialize csvline
-    @bits = csvline.split ','
-    @ordinality = "%05d" % @bits[0]
-
-    fix_date
+class Event < Hash
+  def initialize hash
+    self.update hash
   end
 
-
   def to_s
-    s = ''
-    s << @date
-    s << ", "
-    s << @time
+    s = ""
+    self.each_pair do |k, v|
+      s << "%010s: " % k
+      s << v.to_s
+      s << "\n"
+    end
 
     s
   end
+end
 
-  private
-
-  def fix_date
-    @timestamp = Time.parse "#{@bits[1]}#{@bits[2]}"
-    @unixtime = @timestamp.to_i
-    @date = @timestamp.strftime "%F"
-    @time = @timestamp.strftime "%T"
-    @tzoffset = @timestamp.strftime "%z"
+class Glucose < Event
+  def initialize hash
+    super hash
   end
 end
 
+class Medication < Event
+  def initialize hash
+    super hash
+  end
+end
+
+class Weight < Event
+  def initialize hash
+    super hash
+  end
+end
+
+def fix_date a, b
+  h = {}
+
+  t = Time.parse "#{a}#{b}"
+  h[:timestamp] = t
+  h[:unixtime] = t.to_i
+  h[:day] = t.strftime "%A"
+  h[:date] = t.strftime "%F"
+  h[:time] = t.strftime "%T"
+  h[:tzoffset] = t.strftime "%z"
+
+  h
+end
+
+events = {}
 file = File.new(csvfile, "r")
 while (line = file.gets)
-  e = Event.new line
-  puts e
+  bits = line.split ","
+  h = {}
+  h[:serial] = bits[0].to_i
+  h.update fix_date bits[1], bits[2]
+  h[:type] = bits[3]
+  h[:subtype] = bits[4] if not bits[4] == ""
+  h[:tag] = bits[5]
+  h[:value] = bits[6].to_f
+
+  notes = bits[7][1..-3]
+  h[:notes] = notes if not notes == ""
+
+  case h[:type]
+  when "Glucose"
+    e = Glucose.new h
+  when "Medication"
+    e = Medication.new h
+  when "Weight"
+    e = Weight.new h
+  end
+  events[h[:serial]] = e
 end
 file.close
+
+events.keys.sort.each do |k|
+  puts events[k]
+  puts ""
+end

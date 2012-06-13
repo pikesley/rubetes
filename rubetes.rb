@@ -60,11 +60,11 @@ file = File.new(csvfile, "r")
 while (line = file.gets)
   bits = line.split ","
   h = {}
-  h[:serial] = bits[0].to_i
+  h[:serial] = "%05d" % bits[0].to_i
   h.update fix_date bits[1], bits[2]
   h[:type] = bits[3]
   h[:subtype] = bits[4] if not bits[4] == ""
-  h[:tag] = bits[5]
+  h[:tag] = bits[5] if not bits[5] == ""
   h[:value] = bits[6].to_f
 
   notes = bits[7][1..-3]
@@ -86,3 +86,6 @@ events.keys.sort.each do |k|
   puts events[k]
   puts ""
 end
+
+#require 'pp'
+#pp events

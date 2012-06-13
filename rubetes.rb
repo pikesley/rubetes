@@ -101,7 +101,7 @@ optparse = OptionParser.new do |opts|
 end
 
 optparse.parse!
-puts options
+
 if options[:go_back_days] && options[:for_date] then
   puts "-t and -d are mutually exclusive"
 end
@@ -145,17 +145,23 @@ if options[:for_date] then
   query[:date] = options[:for_date]
 end
 
+if options[:go_back_days] then
+  target_date = (Time.now - (86400 * options[:go_back_days].to_i)).strftime "%F"
+  query[:date] = {"$gt" => "#{target_date}"}
+end
+
 if options[:type] then
   query[:type] = options[:type]
 end
 
-#c = collection.find({'date' => '2012-06-12'}, {:sort => ['timestamp', 'ascending'], :fields => ['date', 'type', 'tag']})
-c = collection.find(query, {:sort => ['timestamp', 'ascending'], :fields => ['date', 'time', 'type', 'tag']})
+if options[:crash] then
+  puts "This one is more complex"
+end
+
+c = collection.find(query, {:sort => ['timestamp', 'ascending'], :fields => ['date', 'time', 'type', 'value', 'tag', 'notes']})
 c.each do |d|
   e = Event.new d
   puts e
   puts 
 end
-
-#collection.find.each { |row| puts row.inspect }
 

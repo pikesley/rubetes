@@ -41,6 +41,13 @@ class Weight < Event
   end
 end
 
+class Food < Event
+  def initialize hash
+    super hash
+  end
+end
+
+# OnTrack uses really shitty date formats
 def fix_date a, b
   h = {}
 
@@ -77,6 +84,8 @@ while (line = file.gets)
     e = Medication.new h
   when "Weight"
     e = Weight.new h
+  when "Food"
+    e = Food.new h
   end
   events[h[:serial]] = e
 end

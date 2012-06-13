@@ -155,9 +155,12 @@ if options[:type] then
 end
 
 if options[:crash] then
-  puts "This one is more complex"
+  query[:type] = 'Glucose'
+  query[:crash] = true
+# need to work back to the last medication event, and pull out the food events in between
 end
 
+# maybe pull all the fields and be selective when printing the object
 c = collection.find(query, {:sort => ['timestamp', 'ascending'], :fields => ['date', 'time', 'type', 'value', 'tag', 'notes']})
 c.each do |d|
   e = Event.new d

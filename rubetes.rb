@@ -79,9 +79,26 @@ optparse = OptionParser.new do |opts|
     options[:crash] = true
   end
 
+# specify output file?
+  options[:csv] = false
+  opts.on('-s', '--csv', 'Generate CSV output') do
+    options[:csv] = true
+  end
+
   options[:type] = nil
   opts.on('-t', '--type TYPE', 'Show only TYPE data') do |t|
     options[:type] = t
+  end
+
+# this needs a handler below
+  options[:tag] = nil
+  opts.on('--tag TAG', 'Show only TAG data') do |tag|
+    options[:tag] = tag
+  end
+
+  options[:this_week] = false
+  opts.on('-w', '--this-week', 'Show last 7 days') do
+    options[:this_week] = true
   end
 
   options[:go_back_days] = nil
@@ -102,6 +119,7 @@ end
 
 optparse.parse!
 
+# this now needs to handle this_week, too
 if options[:go_back_days] && options[:for_date] then
   puts "-t and -d are mutually exclusive"
 end

@@ -4,4 +4,6 @@ Add flags to do things like
 * Show just a particular type or tag
 * Export to CSV for spreadsheet
 
+Highlight good/bad BG values? With colours?
+
 Also modify the Postfix trick to call the script, feeding in the latest CSV file. So the script should actually take the path to the CSV as a parameter.

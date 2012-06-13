@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 
 require 'tzinfo'
+require 'mongo'
+require 'optparse'
 
 csvdir = "/home/sam/dblogs"
 lastdir = "#{csvdir}/#{Dir::entries(csvdir).sort[-1]}"
@@ -14,9 +16,11 @@ class Event < Hash
   def to_s
     s = ""
     self.each_pair do |k, v|
-      s << "%010s: " % k
-      s << v.to_s
-      s << "\n"
+      if not k == '_id' then
+        s << "%010s: " % k
+        s << v.to_s
+        s << "\n"
+      end
     end
 
     s
@@ -26,6 +30,10 @@ end
 class Glucose < Event
   def initialize hash
     super hash
+
+    if self[:value] < 4.0 then
+      self[:crash] = true
+    end
   end
 end
 
@@ -48,10 +56,10 @@ class Food < Event
 end
 
 # OnTrack uses really shitty date formats
-def fix_date a, b
+def fix_date d
   h = {}
 
-  t = Time.parse "#{a}#{b}"
+  t = Time.parse d
   h[:timestamp] = t
   h[:unixtime] = t.to_i
   h[:day] = t.strftime "%A"
@@ -62,39 +70,92 @@ def fix_date a, b
   h
 end
 
-events = {}
-file = File.new(csvfile, "r")
-while (line = file.gets)
-  bits = line.split ","
-  h = {}
-  h[:serial] = "%05d" % bits[0].to_i
-  h.update fix_date bits[1], bits[2]
-  h[:type] = bits[3]
-  h[:subtype] = bits[4] if not bits[4] == ""
-  h[:tag] = bits[5] if not bits[5] == ""
-  h[:value] = bits[6].to_f
+options = {}
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: rubetes.rb [options] [csv_file]"
 
-  notes = bits[7][1..-3]
-  h[:notes] = notes if not notes == ""
-
-  case h[:type]
-  when "Glucose"
-    e = Glucose.new h
-  when "Medication"
-    e = Medication.new h
-  when "Weight"
-    e = Weight.new h
-  when "Food"
-    e = Food.new h
+  options[:crash] = false
+  opts.on('-c', '--crash', 'Report on BG crashes') do
+    options[:crash] = true
   end
-  events[h[:serial]] = e
-end
-file.close
 
-events.keys.sort.each do |k|
-  puts events[k]
-  puts ""
+  options[:type] = nil
+  opts.on('-t', '--type TYPE', 'Show only TYPE data') do |t|
+    options[:type] = t
+  end
+
+  options[:go_back_days] = nil
+  opts.on('-g', '--go-back-days N', 'Go back N days') do |n|
+    options[:go_back_days] = n
+  end
+
+  options[:for_date] = nil
+  opts.on('-d', '--date DATE', 'Show date DATE') do |d|
+    options[:for_date] = fix_date(d)[:date]
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
 end
 
-#require 'pp'
-#pp events
+optparse.parse!
+puts options
+if options[:go_back_days] && options[:for_date] then
+  puts "-t and -d are mutually exclusive"
+end
+
+connection = Mongo::Connection.new
+db = connection.db("rubetes")
+collection = db.collection("events")
+
+if ARGV[0] then
+  file = File.new(ARGV[0], "r")
+  while (line = file.gets)
+    bits = line.split ","
+    h = {}
+    h[:serial] = bits[0].to_i #"%05d" % bits[0].to_i
+    h.update fix_date "#{bits[1]}#{bits[2]}"
+    h[:type] = bits[3]
+    h[:subtype] = bits[4] if not bits[4] == ""
+    h[:tag] = bits[5] if not bits[5] == ""
+    h[:value] = bits[6].to_f
+  
+    notes = bits[7][1..-3]
+    h[:notes] = notes if not notes == ""
+  
+    case h[:type]
+    when "Glucose"
+      e = Glucose.new h
+    when "Medication"
+      e = Medication.new h
+    when "Weight"
+      e = Weight.new h
+    when "Food"
+      e = Food.new h
+    end
+    collection.update({:serial => e[:serial]}, e, {:upsert => true})
+  end
+  file.close
+end
+
+query = {}
+if options[:for_date] then
+  query[:date] = options[:for_date]
+end
+
+if options[:type] then
+  query[:type] = options[:type]
+end
+
+#c = collection.find({'date' => '2012-06-12'}, {:sort => ['timestamp', 'ascending'], :fields => ['date', 'type', 'tag']})
+c = collection.find(query, {:sort => ['timestamp', 'ascending'], :fields => ['date', 'time', 'type', 'tag']})
+c.each do |d|
+  e = Event.new d
+  puts e
+  puts 
+end
+
+#collection.find.each { |row| puts row.inspect }
+

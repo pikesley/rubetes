@@ -6,4 +6,4 @@ Add flags to do things like
 
 Highlight good/bad BG values? With colours?
 
-Also modify the Postfix trick to call the script, feeding in the latest CSV file. So the script should actually take the path to the CSV as a parameter.
+Supplies anaylysis: "this week you have tested on average 7 times a day, you should have 100 lancets left" etc foo bar
